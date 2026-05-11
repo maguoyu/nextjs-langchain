@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { Button, Input, Card, CardHeader, CardTitle, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter, Pagination, Empty } from '@/components/ui'
-import { DashboardLayout } from '@/components/layout/index'
-import { TreeSelect } from '@/components/ui/tree-select'
 
 interface Role {
   id: string
@@ -24,6 +22,18 @@ interface Permission {
   children?: Permission[]
 }
 
+function Breadcrumb() {
+  return (
+    <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
+      <span>系统管理</span>
+      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+      <span className="text-gray-700 dark:text-gray-200 font-medium">角色管理</span>
+    </div>
+  )
+}
+
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
@@ -34,13 +44,7 @@ export default function RolesPage() {
   const [keyword, setKeyword] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
-  const [formData, setFormData] = useState({
-    code: '',
-    name: '',
-    sort: 0,
-    remark: '',
-    permissionIds: [] as string[],
-  })
+  const [formData, setFormData] = useState({ code: '', name: '', sort: 0, remark: '', permissionIds: [] as string[] })
   const [saving, setSaving] = useState(false)
 
   const fetchRoles = useCallback(async () => {
@@ -48,101 +52,52 @@ export default function RolesPage() {
     try {
       const res = await fetch(`/api/roles?page=${page}&pageSize=${pageSize}&keyword=${keyword}`)
       const data = await res.json()
-      if (data.code === 200) {
-        setRoles(data.data.list)
-        setTotal(data.data.total)
-      }
-    } catch (error) {
-      console.error('Failed to fetch roles:', error)
-    } finally {
-      setLoading(false)
-    }
+      if (data.code === 200) { setRoles(data.data.list); setTotal(data.data.total) }
+    } catch (error) { console.error(error) }
+    finally { setLoading(false) }
   }, [page, pageSize, keyword])
 
   const fetchPermissions = useCallback(async () => {
     try {
       const res = await fetch('/api/permissions')
       const data = await res.json()
-      if (data.code === 200) {
-        setPermissions(data.data)
-      }
-    } catch (error) {
-      console.error('Failed to fetch permissions:', error)
-    }
+      if (data.code === 200) setPermissions(data.data)
+    } catch (error) { console.error(error) }
   }, [])
 
-  useEffect(() => {
-    fetchRoles()
-  }, [fetchRoles])
-
-  useEffect(() => {
-    fetchPermissions()
-  }, [fetchPermissions])
-
-  const handleSearch = () => {
-    setPage(1)
-    fetchRoles()
-  }
+  useEffect(() => { fetchRoles() }, [fetchRoles])
+  useEffect(() => { fetchPermissions() }, [fetchPermissions])
 
   const flattenPermissions = (perms: Permission[], result: Permission[] = []): Permission[] => {
-    for (const perm of perms) {
-      result.push(perm)
-      if (perm.children) {
-        flattenPermissions(perm.children, result)
-      }
-    }
+    for (const perm of perms) { result.push(perm); if (perm.children) flattenPermissions(perm.children, result) }
     return result
   }
+
+  const handleSearch = () => { setPage(1); fetchRoles() }
 
   const openModal = (role?: Role) => {
     if (role) {
       setEditingRole(role)
-      setFormData({
-        code: role.code,
-        name: role.name,
-        sort: role.sort,
-        remark: role.remark || '',
-        permissionIds: role.permissions.map(p => p.id),
-      })
+      setFormData({ code: role.code, name: role.name, sort: role.sort, remark: role.remark || '', permissionIds: role.permissions.map(p => p.id) })
     } else {
       setEditingRole(null)
-      setFormData({
-        code: '',
-        name: '',
-        sort: 0,
-        remark: '',
-        permissionIds: [],
-      })
+      setFormData({ code: '', name: '', sort: 0, remark: '', permissionIds: [] })
     }
     setModalOpen(true)
   }
 
   const handleSubmit = async () => {
-    if (!formData.name) {
-      alert('请输入角色名称')
-      return
-    }
+    if (!formData.name) { alert('请输入角色名称'); return }
     setSaving(true)
     try {
       const url = editingRole ? `/api/roles/${editingRole.id}` : '/api/roles'
       const method = editingRole ? 'PUT' : 'POST'
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
       const data = await res.json()
-      if (data.code === 200) {
-        setModalOpen(false)
-        fetchRoles()
-      } else {
-        alert(data.message)
-      }
-    } catch (error) {
-      console.error('Failed to save role:', error)
-    } finally {
-      setSaving(false)
-    }
+      if (data.code === 200) { setModalOpen(false); fetchRoles() }
+      else alert(data.message)
+    } catch (error) { console.error(error) }
+    finally { setSaving(false) }
   }
 
   const handleDelete = async (role: Role) => {
@@ -150,14 +105,9 @@ export default function RolesPage() {
     try {
       const res = await fetch(`/api/roles/${role.id}`, { method: 'DELETE' })
       const data = await res.json()
-      if (data.code === 200) {
-        fetchRoles()
-      } else {
-        alert(data.message)
-      }
-    } catch (error) {
-      console.error('Failed to delete role:', error)
-    }
+      if (data.code === 200) fetchRoles()
+      else alert(data.message)
+    } catch (error) { console.error(error) }
   }
 
   const togglePermission = (permId: string) => {
@@ -170,158 +120,115 @@ export default function RolesPage() {
   }
 
   const flatPerms = flattenPermissions(permissions)
+  const isSuperAdmin = (code: string) => code === 'super_admin'
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
+    <div className="space-y-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">角色管理</h1>
-          <p className="text-gray-500 dark:text-gray-400">管理系统角色和权限</p>
+          <Breadcrumb />
+          <div className="flex items-center justify-between mt-1">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">角色管理</h1>
+              <p className="text-sm text-gray-400 mt-0.5">管理系统角色与权限分配</p>
+            </div>
+            <Button onClick={() => openModal()}>
+              <svg className="w-4 h-4 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              新增角色
+            </Button>
+          </div>
         </div>
 
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>角色列表</CardTitle>
-              <Button onClick={() => openModal()}>新增角色</Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4 mb-6">
-              <Input
-                placeholder="搜索角色名称或编码"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                className="max-w-xs"
-              />
+          <div className="px-5 pt-5 pb-0">
+            <div className="flex items-center gap-3">
+              <Input placeholder="搜索角色名称或编码..." value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="max-w-xs" />
               <Button onClick={handleSearch}>搜索</Button>
             </div>
-
+          </div>
+          <CardContent className="p-0">
             {loading ? (
-              <div className="text-center py-12 text-gray-500">加载中...</div>
+              <div className="flex items-center justify-center py-16">
+                <div className="flex items-center gap-2 text-gray-400">
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.25" /><path d="M12 2a10 10 0 0110 10" strokeLinecap="round" /></svg>
+                  <span className="text-sm">加载中...</span>
+                </div>
+              </div>
             ) : roles.length === 0 ? (
               <Empty description="暂无角色数据" />
             ) : (
               <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>角色编码</TableHead>
-                      <TableHead>角色名称</TableHead>
-                      <TableHead>权限</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead>排序</TableHead>
-                      <TableHead>操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {roles.map((role) => (
-                      <TableRow key={role.id}>
-                        <TableCell>{role.code}</TableCell>
-                        <TableCell>{role.name}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1 max-w-xs">
-                            {role.permissions.slice(0, 3).map((perm) => (
-                              <Badge key={perm.id} variant="info">
-                                {perm.name}
-                              </Badge>
-                            ))}
-                            {role.permissions.length > 3 && (
-                              <Badge variant="default">+{role.permissions.length - 3}</Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={role.status === 1 ? 'success' : 'danger'}>
-                            {role.status === 1 ? '启用' : '禁用'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{role.sort}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openModal(role)}
-                              disabled={role.code === 'super_admin'}
-                            >
-                              编辑
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleDelete(role)}
-                              disabled={role.code === 'super_admin'}
-                            >
-                              删除
-                            </Button>
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>角色编码</TableHead>
+                        <TableHead>角色名称</TableHead>
+                        <TableHead>权限</TableHead>
+                        <TableHead>状态</TableHead>
+                        <TableHead>排序</TableHead>
+                        <TableHead>操作</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="mt-4 flex justify-end">
-                  <Pagination
-                    current={page}
-                    pageSize={pageSize}
-                    total={total}
-                    onChange={(p) => setPage(p)}
-                  />
+                    </TableHeader>
+                    <TableBody>
+                      {roles.map((role) => (
+                        <TableRow key={role.id}>
+                          <TableCell><span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{role.code}</span></TableCell>
+                          <TableCell className="font-medium">{role.name}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1 max-w-xs">
+                              {role.permissions.slice(0, 3).map((perm) => (
+                                <Badge key={perm.id} variant="info">{perm.name}</Badge>
+                              ))}
+                              {role.permissions.length > 3 && (
+                                <Badge variant="default">+{role.permissions.length - 3}</Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={role.status === 1 ? 'success' : 'danger'}>
+                              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 inline-block ${role.status === 1 ? 'bg-green-400' : 'bg-red-400'}`} />
+                              {role.status === 1 ? '启用' : '禁用'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-400">{role.sort}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Button variant="ghost" size="sm" onClick={() => openModal(role)} disabled={isSuperAdmin(role.code)}>编辑</Button>
+                              <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(role)} disabled={isSuperAdmin(role.code)}>删除</Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                  <p className="text-xs text-gray-400">共 {total} 条记录</p>
+                  <Pagination current={page} pageSize={pageSize} total={total} onChange={(p) => setPage(p)} />
                 </div>
               </>
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* 角色表单弹窗 */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} className="max-w-2xl">
-        <ModalHeader>
-          <ModalTitle>{editingRole ? '编辑角色' : '新增角色'}</ModalTitle>
-        </ModalHeader>
+        <Modal open={modalOpen} onClose={() => setModalOpen(false)} className="max-w-xl">
+        <ModalHeader><ModalTitle>{editingRole ? '编辑角色' : '新增角色'}</ModalTitle></ModalHeader>
         <ModalContent>
           <div className="space-y-4">
-            <Input
-              label="角色编码"
-              value={formData.code}
-              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-              disabled={!!editingRole}
-            />
-            <Input
-              label="角色名称"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-            <Input
-              label="排序"
-              type="number"
-              value={formData.sort}
-              onChange={(e) => setFormData({ ...formData, sort: parseInt(e.target.value) || 0 })}
-            />
+            <Input label="角色编码" value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} disabled={!!editingRole} />
+            <Input label="角色名称" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            <Input label="排序" type="number" value={formData.sort} onChange={(e) => setFormData({ ...formData, sort: parseInt(e.target.value) || 0 })} />
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                权限分配
-              </label>
-              <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 max-h-64 overflow-y-auto">
+              <label className="label">权限分配</label>
+              <div className="border border-gray-200 dark:border-gray-600 rounded-xl p-3 max-h-56 overflow-y-auto space-y-1">
                 {flatPerms.map((perm) => (
-                  <div
-                    key={perm.id}
-                    className="flex items-center py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
-                    onClick={() => togglePermission(perm.id)}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.permissionIds.includes(perm.id)}
-                      onChange={() => togglePermission(perm.id)}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">
-                      {perm.name}
-                      <span className="ml-2 text-xs text-gray-500">
-                        ({perm.code})
-                      </span>
-                    </span>
+                  <div key={perm.id} className="flex items-center py-1.5 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors" onClick={() => togglePermission(perm.id)}>
+                    <input type="checkbox" checked={formData.permissionIds.includes(perm.id)} onChange={() => togglePermission(perm.id)} className="mr-3 accent-blue-500" />
+                    <span className="text-sm flex-1">{perm.name}</span>
+                    <span className="text-xs text-gray-400 font-mono">{perm.code}</span>
                   </div>
                 ))}
               </div>
@@ -329,14 +236,10 @@ export default function RolesPage() {
           </div>
         </ModalContent>
         <ModalFooter>
-          <Button variant="outline" onClick={() => setModalOpen(false)}>
-            取消
-          </Button>
-          <Button onClick={handleSubmit} loading={saving}>
-            确定
-          </Button>
+          <Button variant="outline" onClick={() => setModalOpen(false)}>取消</Button>
+          <Button onClick={handleSubmit} loading={saving}>确定</Button>
         </ModalFooter>
       </Modal>
-    </DashboardLayout>
+    </div>
   )
 }

@@ -1,18 +1,23 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
+import { getUserMenus } from '@/lib/menu'
+import { SidebarClient } from '@/components/layout/SidebarClient'
+import { Header } from '@/components/layout/header'
+import { SidebarProvider } from '@/components/layout/sidebar-context'
 
-import { Sidebar } from './sidebar'
-import { Header } from './header'
-import { SidebarProvider } from './sidebar-context'
-
-interface DashboardLayoutProps {
+export default async function DashboardLayout({
+  children,
+}: {
   children: React.ReactNode
-}
+}) {
+  const session = await auth()
+  if (!session) redirect('/auth/login')
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const menus = await getUserMenus(session.user)
+
   return (
     <SidebarProvider>
       <div className="min-h-screen">
-        {/* Subtle gradient background */}
         <div
           className="fixed inset-0 pointer-events-none"
           style={{
@@ -21,7 +26,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           }}
         />
         <div className="relative">
-          <Sidebar />
+          <SidebarClient menus={menus} />
           <Header />
           <main className="pt-[68px] pb-8 px-6 transition-all duration-300">
             <div className="mx-auto max-w-[1400px] mt-4">
