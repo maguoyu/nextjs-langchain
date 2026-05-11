@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import prisma from './prisma'
 import { SESSION_MAX_AGE } from '@/types/constants'
+import { setSession, delSession } from './redis'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -85,10 +86,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       debug('jwt callback', { hasUser: !!user, tokenId: token.id })
       if (user) {
-        token.id = user.id
-        token.username = (user as unknown as { username?: string }).username ?? ''
-        token.roles = (user as { roles?: string[] }).roles || []
-        token.permissions = (user as { permissions?: string[] }).permissions || []
+        const uid = user.id as string
+        token.id = uid
+        token.username = ((user as unknown as { username?: string }).username ?? '') as string
+        token.roles = (((user as unknown as { roles?: string[] }).roles) ?? []) as string[]
+        token.permissions = (((user as unknown as { permissions?: string[] }).permissions) ?? []) as string[]
+
+        // 登录成功后将 session 写入 Redis
+        await setSession(uid, {
+          userId: uid,
+          username: ((user as unknown as { username?: string }).username ?? '') as string,
+          name: ((user as unknown as { name?: string | null }).name ?? '') as string,
+          email: ((user as unknown as { email?: string }).email ?? '') as string,
+          roles: (((user as unknown as { roles?: string[] }).roles) ?? []) as string[],
+          permissions: (((user as unknown as { permissions?: string[] }).permissions) ?? []) as string[],
+          expires: new Date(Date.now() + SESSION_MAX_AGE * 1000).toISOString(),
+        }, SESSION_MAX_AGE)
       }
       return token
     },

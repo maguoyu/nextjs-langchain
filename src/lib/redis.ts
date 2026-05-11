@@ -29,45 +29,39 @@ if (process.env.NODE_ENV !== 'production') {
   globalForRedis.redis = redis
 }
 
-// Session 缓存 key
-export const SESSION_PREFIX = 'session:'
-export const TOKEN_PREFIX = 'token:'
+// Key prefixes
+export const SESSION_PREFIX = 'auth:session:'
 
-// 设置 session
-export async function setSession(userId: string, session: Record<string, unknown>, ttl = 60 * 60 * 24) {
-  const key = `${SESSION_PREFIX}${userId}`
-  await redis.set(key, JSON.stringify(session), 'EX', ttl)
+export interface RedisSessionData {
+  userId: string
+  username: string
+  name: string
+  email: string
+  roles: string[]
+  permissions: string[]
+  expires: string
 }
 
-// 获取 session
-export async function getSession(userId: string): Promise<Record<string, unknown> | null> {
-  const key = `${SESSION_PREFIX}${userId}`
-  const data = await redis.get(key)
-  return data ? JSON.parse(data) : null
+function getSessionKey(userId: string) {
+  return `${SESSION_PREFIX}${userId}`
 }
 
-// 删除 session
+export async function setSession(
+  userId: string,
+  data: RedisSessionData,
+  ttl = 60 * 60 * 24
+) {
+  const key = getSessionKey(userId)
+  await redis.set(key, JSON.stringify(data), 'EX', ttl)
+}
+
+export async function getSession(userId: string): Promise<RedisSessionData | null> {
+  const key = getSessionKey(userId)
+  const raw = await redis.get(key)
+  return raw ? (JSON.parse(raw) as RedisSessionData) : null
+}
+
 export async function delSession(userId: string) {
-  const key = `${SESSION_PREFIX}${userId}`
+  const key = getSessionKey(userId)
   await redis.del(key)
 }
-
-// 设置 token
-export async function setToken(token: string, userId: string, ttl = 60 * 60 * 24) {
-  const key = `${TOKEN_PREFIX}${token}`
-  await redis.set(key, userId, 'EX', ttl)
-}
-
-// 获取 token 对应的用户
-export async function getToken(token: string): Promise<string | null> {
-  const key = `${TOKEN_PREFIX}${token}`
-  return await redis.get(key)
-}
-
-// 删除 token
-export async function delToken(token: string) {
-  const key = `${TOKEN_PREFIX}${token}`
-  await redis.del(key)
-}
-
-export default redis
