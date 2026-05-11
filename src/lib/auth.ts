@@ -5,6 +5,7 @@ import prisma from './prisma'
 import { setSession, delSession } from './redis'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: 'credentials',
@@ -14,6 +15,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
+          console.error('[Auth] 缺少用户名或密码')
           return null
         }
 
@@ -36,7 +38,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           },
         })
 
-        if (!user || user.status !== 1) {
+        if (!user) {
+          console.error('[Auth] 用户不存在:', credentials.username)
+          return null
+        }
+
+        if (user.status !== 1) {
+          console.error('[Auth] 用户状态异常:', user.username, user.status)
           return null
         }
 
@@ -46,18 +54,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         )
 
         if (!isValid) {
+          console.error('[Auth] 密码错误:', credentials.username)
           return null
         }
 
-        // 收集用户权限码
         const permissions = user.roles.flatMap((ur) =>
           ur.role.permissions.map((rp) => rp.permission.code)
         )
 
-        // 收集用户角色码
         const roles = user.roles.map((ur) => ur.role.code)
 
-        // 存储 session 到 Redis
+        console.log('[Auth] 登录成功:', user.username, 'roles:', roles, 'permissions:', permissions.length)
+
         await setSession(user.id, {
           id: user.id,
           username: user.username,
@@ -80,6 +88,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
+      console.log('[Auth jwt] called', { hasUser: !!user, tokenId: token.id, tokenRoles: token.roles })
       if (user) {
         token.id = user.id
         token.username = user.username
@@ -89,6 +98,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token
     },
     async session({ session, token }) {
+      console.log('[Auth session] called', { hasToken: !!token, tokenId: token.id, tokenRoles: token.roles })
       if (session.user) {
         session.user.id = token.id as string
         session.user.username = token.username as string

@@ -24,7 +24,10 @@ export default function LoginPage() {
         redirect: false,
       })
 
+      console.log('[Login] signIn result:', JSON.stringify(result))
+
       if (result?.error) {
+        console.log('[Login] 登录失败，error:', result.error, 'code:', result.code, 'status:', result.status, 'url:', result.url)
         setError('用户名或密码错误')
       } else {
         router.push('/dashboard')
