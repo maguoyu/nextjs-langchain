@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { auth } from '@/lib/auth'
-import { UpdateRoleDto } from '@/types'
+import { requireAuth } from '@/lib/auth-guard'
+import { handleApiError, apiSuccess } from '@/lib/api-error'
+import { UpdateRoleSchema } from '@/types/schemas'
 
 // 获取单个角色
 export async function GET(
@@ -9,37 +10,22 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ code: 401, message: '未登录' }, { status: 401 })
-    }
+    const { error } = await requireAuth()
+    if (error) return error
 
     const { id } = await params
-
     const role = await prisma.role.findUnique({
       where: { id },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
+      include: { permissions: { include: { permission: true } } },
     })
 
     if (!role) {
       return NextResponse.json({ code: 404, message: '角色不存在' }, { status: 404 })
     }
 
-    const response = {
-      ...role,
-      permissions: role.permissions.map((rp) => rp.permission),
-    }
-
-    return NextResponse.json({ code: 200, message: 'success', data: response })
+    return apiSuccess({ ...role, permissions: role.permissions.map((rp) => rp.permission) })
   } catch (error) {
-    console.error('Get role error:', error)
-    return NextResponse.json({ code: 500, message: '服务器错误' }, { status: 500 })
+    return handleApiError(error)
   }
 }
 
@@ -49,76 +35,64 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ code: 401, message: '未登录' }, { status: 401 })
-    }
+    const { error, session } = await requireAuth()
+    if (error) return error
 
-    // 检查是否有权限
-    const hasPermission = session.user.permissions.includes('system:role:edit')
-    if (!hasPermission && !session.user.roles.includes('super_admin')) {
+    if (!session.user.permissions.includes('system:role:edit') && !session.user.roles.includes('super_admin')) {
       return NextResponse.json({ code: 403, message: '无权限' }, { status: 403 })
     }
 
     const { id } = await params
-    const body: UpdateRoleDto = await request.json()
-    const { name, status, sort, remark, permissionIds } = body
+    const body = await request.json()
+    const parsed = UpdateRoleSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { code: 400, message: '参数错误', data: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
 
-    // 检查角色是否存在
-    const existingRole = await prisma.role.findUnique({
-      where: { id },
-    })
+    const { name, status, sort, remark, permissionIds } = parsed.data
 
+    const existingRole = await prisma.role.findUnique({ where: { id } })
     if (!existingRole) {
       return NextResponse.json({ code: 404, message: '角色不存在' }, { status: 404 })
     }
 
-    // 不能修改超级管理员角色
     if (existingRole.code === 'super_admin') {
       return NextResponse.json({ code: 400, message: '不能修改超级管理员角色' }, { status: 400 })
     }
 
-    // 如果更新权限，先删除旧的权限关联
-    if (permissionIds !== undefined) {
-      await prisma.rolePermission.deleteMany({
-        where: { roleId: id },
-      })
-    }
-
-    // 更新角色
-    const role = await prisma.role.update({
-      where: { id },
-      data: {
-        name,
-        status,
-        sort,
-        remark,
-        permissions: permissionIds !== undefined
-          ? {
-              create: permissionIds.map((permissionId) => ({
-                permission: { connect: { id: permissionId } },
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
+    await prisma.$transaction(async (tx) => {
+      if (permissionIds !== undefined) {
+        await tx.rolePermission.deleteMany({ where: { roleId: id } })
+      }
+      return tx.role.update({
+        where: { id },
+        data: {
+          name,
+          status,
+          sort,
+          remark: remark || null,
+          permissions: permissionIds !== undefined
+            ? { create: permissionIds.map((permissionId) => ({ permission: { connect: { id: permissionId } } })) }
+            : undefined,
         },
-      },
+        include: { permissions: { include: { permission: true } } },
+      })
     })
 
-    const response = {
-      ...role,
-      permissions: role.permissions.map((rp) => rp.permission),
-    }
+    const updated = await prisma.role.findUnique({
+      where: { id },
+      include: { permissions: { include: { permission: true } } },
+    })
 
-    return NextResponse.json({ code: 200, message: '更新成功', data: response })
+    return apiSuccess(
+      { ...updated, permissions: updated!.permissions.map((rp) => rp.permission) },
+      '更新成功'
+    )
   } catch (error) {
-    console.error('Update role error:', error)
-    return NextResponse.json({ code: 500, message: '服务器错误' }, { status: 500 })
+    return handleApiError(error)
   }
 }
 
@@ -128,48 +102,36 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ code: 401, message: '未登录' }, { status: 401 })
-    }
+    const { error, session } = await requireAuth()
+    if (error) return error
 
-    // 检查是否有权限
-    const hasPermission = session.user.permissions.includes('system:role:delete')
-    if (!hasPermission && !session.user.roles.includes('super_admin')) {
+    if (!session.user.permissions.includes('system:role:delete') && !session.user.roles.includes('super_admin')) {
       return NextResponse.json({ code: 403, message: '无权限' }, { status: 403 })
     }
 
     const { id } = await params
 
-    // 检查角色是否存在
     const existingRole = await prisma.role.findUnique({
       where: { id },
-      include: {
-        users: true,
-      },
+      include: { users: true },
     })
 
     if (!existingRole) {
       return NextResponse.json({ code: 404, message: '角色不存在' }, { status: 404 })
     }
 
-    // 不能删除超级管理员角色
     if (existingRole.code === 'super_admin') {
       return NextResponse.json({ code: 400, message: '不能删除超级管理员角色' }, { status: 400 })
     }
 
-    // 检查是否有用户使用该角色
     if (existingRole.users.length > 0) {
       return NextResponse.json({ code: 400, message: '该角色已被用户使用，无法删除' }, { status: 400 })
     }
 
-    await prisma.role.delete({
-      where: { id },
-    })
+    await prisma.role.delete({ where: { id } })
 
-    return NextResponse.json({ code: 200, message: '删除成功' })
+    return apiSuccess(null, '删除成功')
   } catch (error) {
-    console.error('Delete role error:', error)
-    return NextResponse.json({ code: 500, message: '服务器错误' }, { status: 500 })
+    return handleApiError(error)
   }
 }

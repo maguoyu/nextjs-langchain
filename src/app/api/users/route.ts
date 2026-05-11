@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { auth } from '@/lib/auth'
-import bcrypt from 'bcryptjs'
-import { CreateUserDto, UpdateUserDto, PaginatedResponse } from '@/types'
+import { requireAuth } from '@/lib/auth-guard'
+import { handleApiError, apiSuccess } from '@/lib/api-error'
+import { CreateUserSchema, PaginationSchema } from '@/types/schemas'
+import { PAGINATION } from '@/types/constants'
 
 // 获取用户列表
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ code: 401, message: '未登录' }, { status: 401 })
-    }
+    const { error, session } = await requireAuth()
+    if (error) return error
 
     const searchParams = request.nextUrl.searchParams
-    const page = parseInt(searchParams.get('page') || '1', 10)
-    const pageSize = parseInt(searchParams.get('pageSize') || '10', 10)
-    const keyword = searchParams.get('keyword') || ''
+    const parsed = PaginationSchema.safeParse({
+      page: searchParams.get('page') || PAGINATION.DEFAULT_PAGE,
+      pageSize: searchParams.get('pageSize') || PAGINATION.DEFAULT_PAGE_SIZE,
+      keyword: searchParams.get('keyword') || '',
+    })
+
+    const { page, pageSize, keyword } = parsed.success ? parsed.data : { page: 1, pageSize: 10, keyword: '' }
 
     const where = keyword
       ? {
@@ -31,11 +34,7 @@ export async function GET(request: NextRequest) {
       prisma.user.findMany({
         where,
         include: {
-          roles: {
-            include: {
-              role: true,
-            },
-          },
+          roles: { include: { role: true } },
         },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -44,83 +43,68 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ])
 
-    // 处理返回数据，移除密码
     const list = users.map((user) => ({
       ...user,
       password: undefined,
       roles: user.roles.map((ur) => ur.role),
     }))
 
-    const response: PaginatedResponse<typeof list[0]> = {
+    return apiSuccess({
       list,
       total,
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-    }
-
-    return NextResponse.json({ code: 200, message: 'success', data: response })
+    })
   } catch (error) {
-    console.error('Get users error:', error)
-    return NextResponse.json({ code: 500, message: '服务器错误' }, { status: 500 })
+    return handleApiError(error)
   }
 }
 
 // 创建用户
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ code: 401, message: '未登录' }, { status: 401 })
-    }
+    const { error, session } = await requireAuth()
+    if (error) return error
 
-    // 检查是否有权限
-    const hasPermission = session.user.permissions.includes('system:user:add')
-    if (!hasPermission && !session.user.roles.includes('super_admin')) {
+    if (!session.user.permissions.includes('system:user:add') && !session.user.roles.includes('super_admin')) {
       return NextResponse.json({ code: 403, message: '无权限' }, { status: 403 })
     }
 
-    const body: CreateUserDto = await request.json()
-    const { username, password, name, email, phone, avatar, remark, roleIds } = body
+    const body = await request.json()
+    const parsed = CreateUserSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { code: 400, message: '参数错误', data: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
 
-    // 检查用户名是否存在
-    const existingUser = await prisma.user.findUnique({
-      where: { username },
-    })
+    const { username, password, name, email, phone, avatar, remark, roleIds } = parsed.data
 
+    const existingUser = await prisma.user.findUnique({ where: { username } })
     if (existingUser) {
       return NextResponse.json({ code: 400, message: '用户名已存在' }, { status: 400 })
     }
 
-    // 加密密码
+    const bcrypt = await import('bcryptjs')
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // 创建用户并关联角色
     const user = await prisma.user.create({
       data: {
         username,
         password: hashedPassword,
         name,
-        email,
-        phone,
-        avatar,
-        remark,
+        email: email || null,
+        phone: phone || null,
+        avatar: avatar || null,
+        remark: remark || null,
         status: 1,
         roles: roleIds?.length
-          ? {
-              create: roleIds.map((roleId) => ({
-                role: { connect: { id: roleId } },
-              })),
-            }
+          ? { create: roleIds.map((roleId) => ({ role: { connect: { id: roleId } } })) }
           : undefined,
       },
-      include: {
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
+      include: { roles: { include: { role: true } } },
     })
 
     const response = {
@@ -129,9 +113,8 @@ export async function POST(request: NextRequest) {
       roles: user.roles.map((ur) => ur.role),
     }
 
-    return NextResponse.json({ code: 200, message: '创建成功', data: response })
+    return apiSuccess(response, '创建成功')
   } catch (error) {
-    console.error('Create user error:', error)
-    return NextResponse.json({ code: 500, message: '服务器错误' }, { status: 500 })
+    return handleApiError(error)
   }
 }

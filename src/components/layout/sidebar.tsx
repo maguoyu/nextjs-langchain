@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useSidebarStore } from '@/lib/store'
+import { useSidebar } from './sidebar-context'
 
 interface MenuItem {
   name: string
@@ -33,7 +33,7 @@ const defaultMenus: MenuItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { collapsed, toggle } = useSidebarStore()
+  const { collapsed, toggle } = useSidebar()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function Sidebar() {
   }, [])
 
   const renderIcon = (icon: string) => {
-    const icons: Record<string, JSX.Element> = {
+    const icons: Record<string, React.ReactElement> = {
       M: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />

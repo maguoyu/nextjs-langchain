@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import type { EChartsOption } from 'echarts'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
 
 interface StatCardProps {
@@ -48,7 +49,7 @@ interface DashboardChartsProps {
     roleDistribution: { name: string; value: number }[]
     monthlyNewUsers: { month: string; value: number }[]
     apiCalls: { hour: string; value: number }[]
-  }
+  } | null
   loading?: boolean
 }
 
@@ -84,7 +85,12 @@ export function DashboardCharts({ stats, loading }: DashboardChartsProps) {
   }
 
   const {
-    overview = {},
+    overview = {
+      userCount: 0,
+      roleCount: 0,
+      permissionCount: 0,
+      menuCount: 0,
+    },
     userTrend = [],
     roleDistribution = [],
     monthlyNewUsers = [],
@@ -297,9 +303,9 @@ export function DashboardCharts({ stats, loading }: DashboardChartsProps) {
   )
 }
 
-function Chart({ option, style }: { option: any; style?: React.CSSProperties }) {
+function Chart({ option, style }: { option: EChartsOption; style?: React.CSSProperties }) {
   const chartRef = React.useRef<HTMLDivElement>(null)
-  const chartInstance = React.useRef<any>(null)
+  const chartInstance = React.useRef<ReturnType<typeof import('echarts')['init']> | null>(null)
 
   React.useEffect(() => {
     if (!chartRef.current) return
@@ -326,5 +332,3 @@ function Chart({ option, style }: { option: any; style?: React.CSSProperties }) 
 
   return <div ref={chartRef} style={{ width: '100%', height: '100%', ...style }} />
 }
-
-export { DashboardCharts }

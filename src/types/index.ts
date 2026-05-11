@@ -140,6 +140,6 @@ export interface ApiResponse<T = unknown> {
 }
 
 // 树形结构
-export interface TreeNode<T> extends T {
+export type TreeNode<T> = T & {
   children?: TreeNode<T>[]
 }

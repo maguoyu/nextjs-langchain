@@ -3,12 +3,12 @@
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Avatar } from '@/components/ui'
-import { useSidebarStore } from '@/lib/store'
+import { useSidebar } from './sidebar-context'
 
 export function Header() {
   const { data: session } = useSession()
   const router = useRouter()
-  const { collapsed } = useSidebarStore()
+  const { collapsed } = useSidebar()
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
@@ -29,7 +29,7 @@ export function Header() {
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
-          <Avatar name={session?.user?.name} size="sm" />
+          <Avatar alt={session?.user?.name ?? undefined} size="sm" />
           <div className="hidden md:block">
             <p className="text-sm font-medium text-gray-900 dark:text-white">
               {session?.user?.name}

@@ -1,8 +1,8 @@
 'use client'
 
-import { SessionProvider } from 'next-auth/react'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { SidebarProvider } from './sidebar-context'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -10,7 +10,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <SessionProvider>
+    <SidebarProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Sidebar />
         <Header />
@@ -20,6 +20,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
       </div>
-    </SessionProvider>
+    </SidebarProvider>
   )
 }

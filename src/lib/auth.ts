@@ -2,7 +2,17 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import prisma from './prisma'
-import { setSession, delSession } from './redis'
+import { SESSION_MAX_AGE } from '@/types/constants'
+
+const isDev = process.env.NODE_ENV !== 'production'
+
+function debug(...args: unknown[]) {
+  if (isDev) console.log('[Auth]', ...args)
+}
+
+function debugError(...args: unknown[]) {
+  console.error('[Auth Error]', ...args)
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -15,7 +25,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
-          console.error('[Auth] 缺少用户名或密码')
+          debugError('缺少用户名或密码')
           return null
         }
 
@@ -39,41 +49,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         })
 
         if (!user) {
-          console.error('[Auth] 用户不存在:', credentials.username)
+          debugError('用户不存在:', credentials.username)
           return null
         }
 
         if (user.status !== 1) {
-          console.error('[Auth] 用户状态异常:', user.username, user.status)
+          debugError('用户状态异常:', user.username, user.status)
           return null
         }
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        )
+        const isValid = await bcrypt.compare(credentials.password as string, user.password)
 
         if (!isValid) {
-          console.error('[Auth] 密码错误:', credentials.username)
+          debugError('密码错误:', credentials.username)
           return null
         }
 
-        const permissions = user.roles.flatMap((ur) =>
-          ur.role.permissions.map((rp) => rp.permission.code)
-        )
-
+        const permissions = user.roles.flatMap((ur) => ur.role.permissions.map((rp) => rp.permission.code))
         const roles = user.roles.map((ur) => ur.role.code)
 
-        console.log('[Auth] 登录成功:', user.username, 'roles:', roles, 'permissions:', permissions.length)
-
-        await setSession(user.id, {
-          id: user.id,
-          username: user.username,
-          name: user.name,
-          email: user.email,
-          roles,
-          permissions,
-        })
+        debug('登录成功:', user.username, 'roles:', roles, 'permissions:', permissions.length)
 
         return {
           id: user.id,
@@ -88,17 +83,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      console.log('[Auth jwt] called', { hasUser: !!user, tokenId: token.id, tokenRoles: token.roles })
+      debug('jwt callback', { hasUser: !!user, tokenId: token.id })
       if (user) {
         token.id = user.id
-        token.username = user.username
+        token.username = (user as unknown as { username?: string }).username ?? ''
         token.roles = (user as { roles?: string[] }).roles || []
         token.permissions = (user as { permissions?: string[] }).permissions || []
       }
       return token
     },
     async session({ session, token }) {
-      console.log('[Auth session] called', { hasToken: !!token, tokenId: token.id, tokenRoles: token.roles })
+      debug('session callback', { hasToken: !!token, tokenId: token.id })
       if (session.user) {
         session.user.id = token.id as string
         session.user.username = token.username as string
@@ -114,16 +109,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: 'jwt',
-    maxAge: 60 * 60 * 24, // 24 hours
+    maxAge: SESSION_MAX_AGE,
   },
   secret: process.env.AUTH_SECRET,
 })
-
-// 自定义 signOut 清理 Redis
-export async function customSignOut() {
-  const session = await auth()
-  if (session?.user?.id) {
-    await delSession(session.user.id)
-  }
-  await signOut()
-}

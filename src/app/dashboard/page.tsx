@@ -1,11 +1,29 @@
 'use client'
 
 import { DashboardCharts } from '@/components/charts'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
+import { Card, CardContent } from '@/components/ui'
 import { useEffect, useState } from 'react'
 
+interface DashboardStats {
+  overview: {
+    userCount: number
+    roleCount: number
+    permissionCount: number
+    menuCount: number
+  }
+  userTrend: { date: string; count: number }[]
+  roleDistribution: { name: string; value: number }[]
+  monthlyNewUsers: { month: string; value: number }[]
+  apiCalls: { hour: string; value: number }[]
+  permissionTypeDistribution: { name: string; value: number }[]
+  businessData: {
+    healthScore: number
+    onlineUsers: number
+  }
+}
+
 export default function DashboardPage() {
-  const [stats, setStats] = useState<any>(null)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,6 +44,8 @@ export default function DashboardPage() {
     fetchStats()
   }, [])
 
+  const totalApiCalls = stats?.apiCalls.reduce((sum, item) => sum + item.value, 0) ?? 0
+
   return (
     <div className="space-y-6">
       <div>
@@ -35,14 +55,15 @@ export default function DashboardPage() {
 
       <DashboardCharts stats={stats} loading={loading} />
 
-      {/* 额外信息卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">系统健康度</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">98.5%</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {stats?.businessData?.healthScore ?? 0}%
+                </p>
               </div>
               <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
                 <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +80,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">在线用户</p>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {stats?.businessData?.onlineUsers || 0}
+                  {stats?.businessData?.onlineUsers ?? 0}
                 </p>
               </div>
               <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
@@ -76,9 +97,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">API 调用量</p>
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                  {stats?.apiCalls?.reduce?.((sum: number, item: any) => sum + item.value, 0) || 0}
-                </p>
+                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{totalApiCalls}</p>
               </div>
               <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full">
                 <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

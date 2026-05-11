@@ -8,11 +8,13 @@ function createRedisClient() {
   const host = process.env.REDIS_HOST || 'localhost'
   const port = parseInt(process.env.REDIS_PORT || '6379', 10)
   const password = process.env.REDIS_PASSWORD
+  const db = parseInt(process.env.REDIS_DATABASE || '0', 10)
 
   return new Redis({
     host,
     port,
     password: password || undefined,
+    db,
     retryStrategy(times) {
       const delay = Math.min(times * 50, 2000)
       return delay

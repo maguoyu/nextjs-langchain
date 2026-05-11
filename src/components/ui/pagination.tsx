@@ -3,7 +3,7 @@
 import { forwardRef, HTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
-export interface PaginationProps extends HTMLAttributes<HTMLDivElement> {
+export interface PaginationProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onChange'> {
   current: number
   pageSize: number
   total: number

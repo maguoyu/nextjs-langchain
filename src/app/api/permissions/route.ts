@@ -1,47 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { auth } from '@/lib/auth'
-import { CreatePermissionDto } from '@/types'
+import { requireAuth } from '@/lib/auth-guard'
+import { handleApiError, apiSuccess } from '@/lib/api-error'
+import { CreatePermissionSchema } from '@/types/schemas'
+import type { Permission } from '@prisma/client'
 
-// 获取权限列表（树形结构）
-export async function GET(request: NextRequest) {
-  try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ code: 401, message: '未登录' }, { status: 401 })
-    }
-
-    const permissions = await prisma.permission.findMany({
-      orderBy: [{ sort: 'asc' }, { createdAt: 'asc' }],
-      include: {
-        parent: true,
-        children: true,
-      },
-    })
-
-    // 构建树形结构
-    const tree = buildPermissionTree(permissions)
-
-    return NextResponse.json({ code: 200, message: 'success', data: tree })
-  } catch (error) {
-    console.error('Get permissions error:', error)
-    return NextResponse.json({ code: 500, message: '服务器错误' }, { status: 500 })
-  }
-}
-
-// 构建权限树
-function buildPermissionTree(permissions: prisma.Permission[]) {
-  const map = new Map<string, any>()
-  const roots: any[] = []
+function buildPermissionTree(permissions: Permission[]) {
+  const map = new Map<string, Permission & { children: (Permission & { children: unknown[] })[] }>()
+  const roots: (Permission & { children: (Permission & { children: unknown[] })[] })[] = []
 
   permissions.forEach((p) => {
     map.set(p.id, { ...p, children: [] })
   })
 
   permissions.forEach((p) => {
-    const node = map.get(p.id)
+    const node = map.get(p.id)!
     if (p.parentId && map.has(p.parentId)) {
-      map.get(p.parentId).children.push(node)
+      map.get(p.parentId)!.children.push(node)
     } else {
       roots.push(node)
     }
@@ -50,29 +25,47 @@ function buildPermissionTree(permissions: prisma.Permission[]) {
   return roots
 }
 
+// 获取权限列表（树形结构）
+export async function GET(request: NextRequest) {
+  try {
+    const { error } = await requireAuth()
+    if (error) return error
+
+    const permissions = await prisma.permission.findMany({
+      orderBy: [{ sort: 'asc' }, { createdAt: 'asc' }],
+    })
+
+    const tree = buildPermissionTree(permissions)
+
+    return apiSuccess(tree)
+  } catch (error) {
+    return handleApiError(error)
+  }
+}
+
 // 创建权限
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ code: 401, message: '未登录' }, { status: 401 })
-    }
+    const { error, session } = await requireAuth()
+    if (error) return error
 
-    // 检查是否有权限
-    const hasPermission = session.user.permissions.includes('system:permission:add')
-    if (!hasPermission && !session.user.roles.includes('super_admin')) {
+    if (!session.user.permissions.includes('system:permission:add') && !session.user.roles.includes('super_admin')) {
       return NextResponse.json({ code: 403, message: '无权限' }, { status: 403 })
     }
 
-    const body: CreatePermissionDto = await request.json()
-    const { code, name, type, parentId, path, icon, sort, status, remark } = body
+    const body = await request.json()
+    const parsed = CreatePermissionSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { code: 400, message: '参数错误', data: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
 
-    // 检查权限编码是否存在
-    const existingPermission = await prisma.permission.findUnique({
-      where: { code },
-    })
+    const { code, name, type, parentId, path, icon, sort, status, remark } = parsed.data
 
-    if (existingPermission) {
+    const existing = await prisma.permission.findUnique({ where: { code } })
+    if (existing) {
       return NextResponse.json({ code: 400, message: '权限编码已存在' }, { status: 400 })
     }
 
@@ -81,18 +74,17 @@ export async function POST(request: NextRequest) {
         code,
         name,
         type,
-        parentId,
-        path,
-        icon,
+        parentId: parentId || null,
+        path: path || null,
+        icon: icon || null,
         sort: sort ?? 0,
         status: status ?? 1,
-        remark,
+        remark: remark || null,
       },
     })
 
-    return NextResponse.json({ code: 200, message: '创建成功', data: permission })
+    return apiSuccess(permission, '创建成功')
   } catch (error) {
-    console.error('Create permission error:', error)
-    return NextResponse.json({ code: 500, message: '服务器错误' }, { status: 500 })
+    return handleApiError(error)
   }
 }
