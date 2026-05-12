@@ -10,6 +10,7 @@
 - [x] 2.2 Create `src/lib/ai/langchain.ts` for LangChain utilities
 - [x] 2.3 Create `src/lib/ai/langgraph.ts` for LangGraph agent setup
 - [x] 2.4 Create `src/lib/ai/deepagents.ts` for DeepAgents client
+- [x] 2.5 Test OpenAI-compatible API endpoint (taotoken.net with deepseek-v4-pro model)
 
 ## 3. Create API Routes
 
