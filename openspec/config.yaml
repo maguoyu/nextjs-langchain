@@ -16,7 +16,7 @@ context: |
   Project type: RBAC dashboard + AI chat platform
   Key domains:
     - Dashboard: users, roles, permissions, menus CRUD with ECharts stats
-    - AI Chat: multi-agent chat with streaming (langgraph, deepagents, langchain endpoints)
+    - AI Chat: multi-agent chat with streaming (langgraph, langchain endpoints)
     - Auth: role-based access guard, session management via NextAuth + Redis
 
 rules:
