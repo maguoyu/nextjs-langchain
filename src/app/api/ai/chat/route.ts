@@ -14,6 +14,12 @@ interface RequestBody {
   history?: ChatMessage[]
 }
 
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream',
+  'Cache-Control': 'no-cache, no-transform',
+  'X-Accel-Buffering': 'no',
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) {
@@ -31,20 +37,16 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       const encoder = new TextEncoder()
 
-      const send = (content: string) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n`))
-      }
-
-      const done = () => {
-        controller.enqueue(encoder.encode('data: [DONE]\n'))
-        controller.close()
+      const sendEvent = (eventType: string, data: Record<string, unknown>) => {
+        const lines = [`event: ${eventType}`, `data: ${JSON.stringify(data)}`, '']
+        controller.enqueue(encoder.encode(lines.join('\n')))
       }
 
       try {
         const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${process.env.ZHIPU_API_KEY ?? ''}`,
+            Authorization: `Bearer ${process.env.ZHIPU_API_KEY ?? ''}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -64,7 +66,9 @@ export async function POST(req: NextRequest) {
 
         if (!response.ok) {
           const errText = await response.text()
-          throw new Error(`API error ${response.status}: ${errText}`)
+          sendEvent('error', { error: `API error ${response.status}: ${errText}` })
+          controller.close()
+          return
         }
 
         if (!response.body) throw new Error('No response body')
@@ -72,10 +76,11 @@ export async function POST(req: NextRequest) {
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let buffer = ''
+        let fullContent = ''
 
         while (true) {
-          const { done: readerDone, value } = await reader.read()
-          if (readerDone) break
+          const { done, value } = await reader.read()
+          if (done) break
 
           buffer += decoder.decode(value, { stream: true })
           const lines = buffer.split('\n')
@@ -85,30 +90,31 @@ export async function POST(req: NextRequest) {
             if (line.startsWith('data: ')) {
               const data = line.slice(6)
               if (data === '[DONE]') {
-                done()
+                sendEvent('done', { content: fullContent })
+                controller.close()
                 return
               }
               try {
                 const parsed = JSON.parse(data)
                 const content = parsed.choices?.[0]?.delta?.content
-                if (content) send(content)
+                if (content) {
+                  fullContent += content
+                  sendEvent('content', { content })
+                }
               } catch {}
             }
           }
         }
 
-        done()
+        sendEvent('done', { content: fullContent })
+        controller.close()
       } catch (err) {
-        controller.error(err)
+        const msg = err instanceof Error ? err.message : 'Stream error'
+        sendEvent('error', { error: msg })
+        controller.close()
       }
     },
   })
 
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      'X-Accel-Buffering': 'no',
-    },
-  })
+  return new Response(stream, { headers: SSE_HEADERS })
 }

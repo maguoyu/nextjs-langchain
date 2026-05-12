@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui'
 import { ChatMessage } from '@/components/ai/ChatMessage'
 import { ChatInput } from '@/components/ai/ChatInput'
+import { createSSEStream } from '@/lib/ai/stream-client'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -32,29 +33,51 @@ export default function DeepAgentsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showThinking, setShowThinking] = useState(true)
+  const [streamingContent, setStreamingContent] = useState('')
+  const [streamingThinking, setStreamingThinking] = useState('')
+  const streamingContentRef = useRef('')
+  const streamingThinkingRef = useRef('')
 
   const sendMessage = useCallback(async (text: string) => {
     const userMsg: Message = { role: 'user', content: text }
     setMessages((prev) => [...prev, userMsg])
     setLoading(true)
     setError(null)
+    setStreamingContent('')
+    setStreamingThinking('')
+    streamingContentRef.current = ''
+    streamingThinkingRef.current = ''
 
     try {
-      const res = await fetch('/api/ai/deepagents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMsg], thinking: showThinking }),
+      const stream = await createSSEStream('/api/ai/deepagents', {
+        messages: [...messages, userMsg],
+        thinking: showThinking,
       })
-      const data = await res.json()
-      if (data.code === 200) {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: data.data.response, thinking: showThinking ? data.data.thinking : undefined },
-        ])
-      } else {
-        setError(data.message || 'Request failed')
+
+      for await (const event of stream.events) {
+        if (event.type === 'content') {
+          streamingContentRef.current += event.content
+          setStreamingContent(streamingContentRef.current)
+        } else if (event.type === 'thinking') {
+          streamingThinkingRef.current += event.thinking
+          setStreamingThinking(streamingThinkingRef.current)
+        } else if (event.type === 'done') {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: event.content || streamingContentRef.current,
+              thinking: event.thinking || streamingThinkingRef.current,
+            },
+          ])
+          setStreamingContent('')
+          setStreamingThinking('')
+        } else if (event.type === 'error') {
+          setError(event.error)
+          break
+        }
       }
-    } catch (err) {
+    } catch {
       setError('Network error')
     } finally {
       setLoading(false)
@@ -106,7 +129,14 @@ export default function DeepAgentsPage() {
             {messages.map((msg, i) => (
               <ChatMessage key={i} role={msg.role} content={msg.content} thinking={msg.thinking} />
             ))}
-            {loading && (
+            {(streamingContent || streamingThinking) && (
+              <ChatMessage
+                role="assistant"
+                content={streamingContent}
+                thinking={showThinking ? streamingThinking : undefined}
+              />
+            )}
+            {loading && !streamingContent && (
               <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
                 <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

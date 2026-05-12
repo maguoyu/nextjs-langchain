@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { ChatMessage } from '@/components/ai/ChatMessage'
 import { ChatInput } from '@/components/ai/ChatInput'
+import { createSSEStream } from '@/lib/ai/stream-client'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -30,27 +31,39 @@ export default function LangChainPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [streamingContent, setStreamingContent] = useState('')
 
   const sendMessage = useCallback(async (text: string) => {
     const userMsg: Message = { role: 'user', content: text }
-    setMessages((prev) => [...prev, userMsg])
+    setMessages((prev) => {
+      const next = [...prev, userMsg]
+      return next
+    })
     setLoading(true)
     setError(null)
+    setStreamingContent('')
 
     try {
-      const res = await fetch('/api/ai/langchain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMsg] }),
+      const stream = await createSSEStream('/api/ai/langchain', {
+        messages: [...messages, userMsg],
       })
-      const data = await res.json()
-      if (data.code === 200) {
-        setMessages((prev) => [...prev, data.data])
-      } else {
-        setError(data.message || 'Request failed')
+
+      for await (const event of stream.events) {
+        if (event.type === 'content') {
+          setStreamingContent((prev) => prev + event.content)
+        } else if (event.type === 'done') {
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: event.content },
+          ])
+          setStreamingContent('')
+        } else if (event.type === 'error') {
+          setError(event.error)
+          break
+        }
       }
     } catch (err) {
-      setError('Network error')
+      setError(err instanceof Error ? err.message : 'Network error')
     } finally {
       setLoading(false)
     }
@@ -91,7 +104,10 @@ export default function LangChainPage() {
             {messages.map((msg, i) => (
               <ChatMessage key={i} role={msg.role} content={msg.content} />
             ))}
-            {loading && (
+            {streamingContent && (
+              <ChatMessage role="assistant" content={streamingContent} />
+            )}
+            {loading && !streamingContent && (
               <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
                 <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
