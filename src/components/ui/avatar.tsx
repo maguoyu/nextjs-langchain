@@ -9,32 +9,28 @@ export interface AvatarProps extends HTMLAttributes<HTMLDivElement> {
   size?: 'sm' | 'md' | 'lg'
 }
 
+const sizes = {
+  sm: 'w-7 h-7 text-xs',
+  md: 'w-9 h-9 text-sm',
+  lg: 'w-11 h-11 text-base',
+}
+
 const Avatar = forwardRef<HTMLDivElement, AvatarProps>(
   ({ className, src, alt, size = 'md', ...props }, ref) => {
-    const sizes = {
-      sm: 'w-8 h-8 text-xs',
-      md: 'w-10 h-10 text-sm',
-      lg: 'w-12 h-12 text-base',
-    }
-
     return (
       <div
         ref={ref}
         className={cn(
-          'relative inline-flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden',
+          'relative inline-flex items-center justify-center rounded-full overflow-hidden bg-[var(--muted)] shrink-0',
           sizes[size],
           className
         )}
         {...props}
       >
         {src ? (
-          <img
-            src={src}
-            alt={alt || 'Avatar'}
-            className="w-full h-full object-cover"
-          />
+          <img src={src} alt={alt || 'Avatar'} className="w-full h-full object-cover" />
         ) : (
-          <span className="font-medium text-gray-600 dark:text-gray-300">
+          <span className="font-medium text-[var(--muted-foreground)]">
             {alt?.charAt(0).toUpperCase() || 'U'}
           </span>
         )}

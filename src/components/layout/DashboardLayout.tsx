@@ -1,6 +1,7 @@
 'use client'
 
-import { Sidebar } from './sidebar'
+import { useSidebar } from './sidebar-context'
+import { SidebarClient } from './SidebarClient'
 import { Header } from './header'
 import { SidebarProvider } from './sidebar-context'
 
@@ -8,27 +9,27 @@ interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
+function LayoutContent({ children }: { children: React.ReactNode }) {
+  const { collapsed } = useSidebar()
+  
+  return (
+    <>
+      <SidebarClient menus={[]} />
+      <Header />
+      <main className={`pt-14 transition-all duration-200 ${collapsed ? 'pl-[72px]' : 'pl-[260px]'}`}>
+        <div className="mx-auto max-w-[1400px] p-5">
+          {children}
+        </div>
+      </main>
+    </>
+  )
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <SidebarProvider>
-      <div className="min-h-screen">
-        {/* Subtle gradient background */}
-        <div
-          className="fixed inset-0 pointer-events-none"
-          style={{
-            background:
-              'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(59,130,246,0.06) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 100%, rgba(99,102,241,0.04) 0%, transparent 50%)',
-          }}
-        />
-        <div className="relative">
-          <Sidebar />
-          <Header />
-          <main className="pt-[68px] pb-8 px-6 transition-all duration-300">
-            <div className="mx-auto max-w-[1400px] mt-4">
-              {children}
-            </div>
-          </main>
-        </div>
+      <div className="min-h-screen" style={{ background: 'var(--app-background)' }}>
+        <LayoutContent>{children}</LayoutContent>
       </div>
     </SidebarProvider>
   )

@@ -1,86 +1,85 @@
-'use client'
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-import { HTMLAttributes, forwardRef } from 'react'
-import { cn } from '@/lib/utils'
-
-export interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'bordered' | 'shadow'
+function Card({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card"
+      className={cn(
+        "bg-[var(--card)] text-[var(--card-foreground)] flex flex-col rounded-xl border shadow-sm",
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
-const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant = 'default', ...props }, ref) => {
-    const variants = {
-      default: 'bg-white dark:bg-[#1f2937] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800',
-      bordered: 'bg-white dark:bg-[#1f2937] rounded-2xl border border-gray-200 dark:border-gray-700',
-      shadow: 'bg-white dark:bg-[#1f2937] rounded-2xl shadow-lg shadow-gray-200/50 dark:shadow-black/20',
-    }
-
-    return (
-      <div
-        ref={ref}
-        className={cn(variants[variant], className)}
-        {...props}
-      />
-    )
-  }
-)
-
-Card.displayName = 'Card'
-
-const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
     <div
-      ref={ref}
-      className={cn('px-5 py-4 border-b border-gray-100 dark:border-gray-800', className)}
+      data-slot="card-header"
+      className={cn("flex flex-col gap-1.5 p-5", className)}
       {...props}
     />
-  )
-)
+  );
+}
 
-CardHeader.displayName = 'CardHeader'
-
-const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, ...props }, ref) => (
+function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
+  return (
     <h3
-      ref={ref}
-      className={cn('text-base font-semibold text-gray-900 dark:text-white', className)}
+      data-slot="card-title"
+      className={cn("text-base font-semibold leading-none", className)}
       {...props}
     />
-  )
-)
+  );
+}
 
-CardTitle.displayName = 'CardTitle'
-
-const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
-  ({ className, ...props }, ref) => (
+function CardDescription({ className, ...props }: React.ComponentProps<"p">) {
+  return (
     <p
-      ref={ref}
-      className={cn('text-sm text-gray-500 dark:text-gray-400', className)}
+      data-slot="card-description"
+      className={cn("text-sm text-[var(--muted-foreground)]", className)}
       {...props}
     />
-  )
-)
+  );
+}
 
-CardDescription.displayName = 'CardDescription'
-
-const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('p-5', className)} {...props} />
-  )
-)
-
-CardContent.displayName = 'CardContent'
-
-const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
     <div
-      ref={ref}
-      className={cn('px-5 py-4 border-t border-gray-100 dark:border-gray-800', className)}
+      data-slot="card-action"
+      className={cn("ml-auto self-start", className)}
       {...props}
     />
-  )
-)
+  );
+}
 
-CardFooter.displayName = 'CardFooter'
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("p-5 pt-0", className)}
+      {...props}
+    />
+  );
+}
 
-export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center p-5 pt-0", className)}
+      {...props}
+    />
+  );
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+};

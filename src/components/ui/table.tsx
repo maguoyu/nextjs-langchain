@@ -7,7 +7,7 @@ export interface TableProps extends HTMLAttributes<HTMLTableElement> {}
 
 const Table = forwardRef<HTMLTableElement, TableProps>(
   ({ className, ...props }, ref) => (
-    <div className="w-full overflow-auto">
+    <div className="w-full overflow-auto rounded-lg border border-[var(--border)]">
       <table
         ref={ref}
         className={cn('w-full text-sm text-left', className)}
@@ -23,7 +23,7 @@ const TableHeader = forwardRef<HTMLTableSectionElement, HTMLAttributes<HTMLTable
   ({ className, ...props }, ref) => (
     <thead
       ref={ref}
-      className={cn('text-xs text-gray-500 uppercase tracking-wider bg-gray-50 dark:bg-gray-900', className)}
+      className={cn('text-xs uppercase tracking-wider bg-[var(--muted)] text-[var(--muted-foreground)]', className)}
       {...props}
     />
   )
@@ -33,11 +33,7 @@ TableHeader.displayName = 'TableHeader'
 
 const TableBody = forwardRef<HTMLTableSectionElement, HTMLAttributes<HTMLTableSectionElement>>(
   ({ className, ...props }, ref) => (
-    <tbody
-      ref={ref}
-      className={cn('divide-y divide-gray-200 dark:divide-gray-700', className)}
-      {...props}
-    />
+    <tbody ref={ref} className={cn('divide-y divide-[var(--border)]', className)} {...props} />
   )
 )
 
@@ -47,7 +43,7 @@ const TableRow = forwardRef<HTMLTableRowElement, HTMLAttributes<HTMLTableRowElem
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn('hover:bg-gray-50 dark:hover:bg-gray-900', className)}
+      className={cn('hover:bg-[var(--accent)] transition-colors', className)}
       {...props}
     />
   )
@@ -59,7 +55,7 @@ const TableHead = forwardRef<HTMLTableCellElement, HTMLAttributes<HTMLTableCellE
   ({ className, ...props }, ref) => (
     <th
       ref={ref}
-      className={cn('px-6 py-3 font-medium text-gray-500', className)}
+      className={cn('px-4 py-3 font-medium text-[var(--muted-foreground)]', className)}
       {...props}
     />
   )
@@ -71,7 +67,7 @@ const TableCell = forwardRef<HTMLTableCellElement, HTMLAttributes<HTMLTableCellE
   ({ className, ...props }, ref) => (
     <td
       ref={ref}
-      className={cn('px-6 py-4 text-gray-900 dark:text-gray-100', className)}
+      className={cn('px-4 py-3 text-[var(--foreground)]', className)}
       {...props}
     />
   )

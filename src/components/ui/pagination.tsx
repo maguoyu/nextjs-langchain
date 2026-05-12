@@ -39,19 +39,12 @@ const Pagination = forwardRef<HTMLDivElement, PaginationProps>(
     }
 
     return (
-      <div
-        ref={ref}
-        className={cn('flex items-center gap-1.5', className)}
-        {...props}
-      >
+      <div ref={ref} className={cn('flex items-center gap-1', className)} {...props}>
         <button
-          className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-xs rounded-md border border-[var(--border)] text-[var(--muted-foreground)] hover:bg-[var(--accent)] disabled:opacity-40 disabled:pointer-events-none transition-colors"
           disabled={current === 1}
           onClick={() => onChange?.(current - 1)}
         >
-          <svg className="w-3.5 h-3.5 inline mr-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
           上一页
         </button>
 
@@ -59,12 +52,12 @@ const Pagination = forwardRef<HTMLDivElement, PaginationProps>(
           <button
             key={index}
             className={cn(
-              'px-3 py-1.5 text-sm rounded-lg border transition-all',
+              'px-3 py-1.5 text-xs rounded-md border transition-all',
               page === current
-                ? 'bg-blue-500 text-white border-blue-500 shadow-sm shadow-blue-500/20'
+                ? 'bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)] shadow-sm'
                 : page === '...'
-                ? 'border-transparent text-gray-400 cursor-default'
-                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+                ? 'border-transparent text-[var(--muted-foreground)] cursor-default'
+                : 'border-[var(--border)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]'
             )}
             disabled={page === '...'}
             onClick={() => typeof page === 'number' && onChange?.(page)}
@@ -74,14 +67,11 @@ const Pagination = forwardRef<HTMLDivElement, PaginationProps>(
         ))}
 
         <button
-          className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-xs rounded-md border border-[var(--border)] text-[var(--muted-foreground)] hover:bg-[var(--accent)] disabled:opacity-40 disabled:pointer-events-none transition-colors"
           disabled={current === totalPages}
           onClick={() => onChange?.(current + 1)}
         >
           下一页
-          <svg className="w-3.5 h-3.5 inline ml-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
         </button>
       </div>
     )

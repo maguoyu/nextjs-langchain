@@ -15,20 +15,17 @@ const Modal = forwardRef<HTMLDivElement, ModalProps>(
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
         <div className="flex min-h-screen items-center justify-center p-4">
-          {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
             onClick={onClose}
           />
-          {/* Panel */}
           <div
             ref={ref}
             className={cn(
-              'relative bg-white dark:bg-[#1f2937] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col',
-              'transform transition-all duration-300',
+              'relative bg-[var(--card)] text-[var(--card-foreground)] rounded-xl shadow-lg w-full max-w-lg border border-[var(--border)]',
+              'animate-[fade-in_0.2s_ease_forwards]',
               className
             )}
-            style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.2)' }}
             {...props}
           >
             {children}
@@ -43,11 +40,7 @@ Modal.displayName = 'Modal'
 
 const ModalHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn('px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0', className)}
-      {...props}
-    />
+    <div ref={ref} className={cn('flex flex-col gap-1 p-5 pb-0', className)} {...props} />
   )
 )
 
@@ -55,11 +48,7 @@ ModalHeader.displayName = 'ModalHeader'
 
 const ModalTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
-    <h3
-      ref={ref}
-      className={cn('text-base font-semibold text-gray-900 dark:text-white', className)}
-      {...props}
-    />
+    <h3 ref={ref} className={cn('text-base font-semibold', className)} {...props} />
   )
 )
 
@@ -67,7 +56,7 @@ ModalTitle.displayName = 'ModalTitle'
 
 const ModalContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('px-6 py-5 overflow-y-auto flex-1', className)} {...props} />
+    <div ref={ref} className={cn('p-5', className)} {...props} />
   )
 )
 
@@ -77,7 +66,7 @@ const ModalFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-2.5 shrink-0 bg-gray-50/50 dark:bg-gray-900/50', className)}
+      className={cn('flex justify-end gap-2 p-5 pt-0', className)}
       {...props}
     />
   )
