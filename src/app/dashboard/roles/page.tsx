@@ -45,7 +45,7 @@ export default function RolesPage() {
     try {
       const res = await fetch('/api/permissions')
       const data = await res.json()
-      if (data.code === 200) setPermissions(data.data)
+      if (data.code === 200 && Array.isArray(data.data)) setPermissions(data.data)
     } catch (error) { console.error(error) }
   }, [])
 
@@ -53,6 +53,7 @@ export default function RolesPage() {
   useEffect(() => { fetchPermissions() }, [fetchPermissions])
 
   const flattenPermissions = (perms: Permission[], result: Permission[] = []): Permission[] => {
+    if (!perms || !Array.isArray(perms)) return result
     for (const p of perms) { result.push(p); if (p.children) flattenPermissions(p.children, result) }
     return result
   }
@@ -91,7 +92,7 @@ export default function RolesPage() {
     setFormData(prev => ({ ...prev, permissionIds: prev.permissionIds.includes(permId) ? prev.permissionIds.filter(id => id !== permId) : [...prev.permissionIds, permId] }))
   }
 
-  const flatPerms = flattenPermissions(permissions)
+  const flatPerms = flattenPermissions(permissions || [])
   const isSuperAdmin = (code: string) => code === 'super_admin'
 
   return (

@@ -197,6 +197,20 @@ async function main() {
       sort: 0,
       children: [],
     },
+    // AI Demo 目录
+    {
+      code: 'ai-demo',
+      name: 'AI Demo',
+      type: 'CATALOG',
+      path: '/ai-demo',
+      icon: 'Bot',
+      sort: 2,
+      children: [
+        { code: 'ai:langchain', name: 'LangChain Chat', type: 'MENU', path: '/dashboard/langchain', icon: 'Bot', sort: 1 },
+        { code: 'ai:langgraph', name: 'LangGraph Workflow', type: 'MENU', path: '/dashboard/langgraph', icon: 'Workflow', sort: 2 },
+        { code: 'ai:deepagents', name: 'DeepAgents Reasoning', type: 'MENU', path: '/dashboard/deepagents', icon: 'Brain', sort: 3 },
+      ],
+    },
   ]
 
   for (const menu of menus) {

@@ -112,6 +112,20 @@ const ICON_MAP: Record<string, React.ReactElement> = {
       <path d="M9 10h6" />
     </svg>
   ),
+  Workflow: (
+    <svg className={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="5" height="5" rx="1" />
+      <rect x="16" y="3" width="5" height="5" rx="1" />
+      <rect x="3" y="16" width="5" height="5" rx="1" />
+      <path d="M21 10.5v3a2 2 0 01-2 2h-3M10 3v3a2 2 0 01-2 2H5M10 21v-3a2 2 0 012-2h3M3 13.5v-3a2 2 0 012-2h3" />
+      <path d="M16 16l2 2m-2 2l-2 2m4-4l2 2m-2-2l-2-2" />
+    </svg>
+  ),
+  Brain: (
+    <svg className={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 4.5a2.5 2.5 0 00-4.96-.46 2.5 2.5 0 00-1.98 3 2.5 2.5 0 00.47 3.96 2.5 2.5 0 00-1.32 4.24 3 3 0 003.84 2.75h1.72a2.5 2.5 0 004.96.44 2.5 2.5 0 001.98-3 2.5 2.5 0 00-.47-3.96 2.5 2.5 0 001.32-4.24 3 3 0 00-3.84-2.75h-1.72a2.5 2.5 0 00-4.96-.44 2.5 2.5 0 00-1.98 3 2.5 2.5 0 00.47 3.96 2.5 2.5 0 00-1.32 4.24 3 3 0 003.84 2.75h15a3 3 0 003-2.75 3 3 0 00-1.32-4.24 2.5 2.5 0 00.47-3.96 2.5 2.5 0 00-1.98-3 2.5 2.5 0 00-4.96.44h-1.72a3 3 0 00-3.84-2.75 3 3 0 001.32-4.24 2.5 2.5 0 00-.47-3.96 2.5 2.5 0 001.98-3 2.5 2.5 0 00-4.96-.44z" />
+    </svg>
+  ),
   // Misc
   File: (
     <svg className={ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
