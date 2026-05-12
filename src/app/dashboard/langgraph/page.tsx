@@ -64,9 +64,6 @@ export default function LangGraphPage() {
         const processEvents = () => {
           reader.read().then(({ done, value }) => {
             if (done || controller.signal.aborted) {
-              if (fullResponse) {
-                setMessages(prev => [...prev, { role: 'assistant', content: fullResponse }])
-              }
               setLoading(false)
               return
             }
@@ -103,8 +100,6 @@ export default function LangGraphPage() {
                       }
                       return [...prev, { role: 'assistant', content: fullResponse }]
                     })
-                  } else if (eventType === 'done') {
-                    setLoading(false)
                   } else if (eventType === 'error') {
                     setError(data.error || 'Stream error')
                     setLoading(false)

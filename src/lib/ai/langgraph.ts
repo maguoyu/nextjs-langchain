@@ -93,22 +93,27 @@ export async function* runWorkflowStream(
       config
     )
 
-    let streamed = false
+    let lastContent = ''
+    let sent = false
     for await (const event of stream) {
       for (const [key, value] of Object.entries(event)) {
         if (value && typeof value === 'object' && 'messages' in value) {
           const output = value as { messages: Array<{ role: string; content: string }> }
           const lastMessage = output.messages[output.messages.length - 1]
           if (lastMessage?.role === 'assistant' && lastMessage.content) {
-            if (!streamed) {
-              streamed = true
+            const content = lastMessage.content
+            if (content !== lastContent) {
+              lastContent = content
+              yield { content }
+              sent = true
             }
-            yield { content: lastMessage.content }
           }
         }
       }
     }
-    yield { done: true }
+    if (sent) {
+      yield { done: true }
+    }
   } catch (err) {
     yield { error: err instanceof Error ? err.message : 'Stream error' }
   }
