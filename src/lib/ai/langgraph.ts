@@ -1,100 +1,115 @@
 import { ChatOpenAI } from '@langchain/openai'
-import { END, MemorySaver } from '@langchain/langgraph'
+import { Annotation, StateGraph, END, MemorySaver } from '@langchain/langgraph'
 
-interface StepRecord {
-  step: number
-  thought: string
-  action: string
-  observation: string
-}
-
-interface AgentState {
-  messages: Array<{ role: string; content: string }>
-  input: string
-  steps: StepRecord[]
-  currentStep: number
-}
-
-const model = new ChatOpenAI({ modelName: 'gpt-4o', temperature: 0.7, openAIApiKey: process.env.OPENAI_API_KEY })
-
-async function reasonNode(state: AgentState): Promise<Partial<AgentState>> {
-  const lastMsg = state.messages[state.messages.length - 1]
-  const thought = String(lastMsg.content)
-  const action = 'Analyzing and reasoning about the task'
-  return {
-    steps: [
-      ...state.steps,
-      { step: state.currentStep + 1, thought, action, observation: '' },
-    ],
-    currentStep: state.currentStep + 1,
-  }
-}
-
-async function actNode(state: AgentState): Promise<Partial<AgentState>> {
-  const lastStep = state.steps[state.steps.length - 1]
-  const steps = [...state.steps]
-  steps[steps.length - 1] = { ...lastStep, observation: 'Analysis complete' }
-
-  const reasoning = await model.invoke([
-    { role: 'user', content: `Based on this request: "${state.input}", provide a thoughtful and helpful response. Think step by step.` },
-  ])
-
-  const content = typeof reasoning.content === 'string' ? reasoning.content : String(reasoning.content)
-
-  return {
-    steps: [...steps, {
-      step: state.currentStep + 2,
-      thought: content,
-      action: 'Generating response',
-      observation: 'Response ready',
-    }],
-    currentStep: state.currentStep + 2,
-  }
-}
-
-function shouldContinue(state: AgentState): string {
-  if (state.currentStep >= 2) return 'end'
-  return 'reason'
-}
-
-async function runAgent(input: string): Promise<AgentState> {
-  const state: AgentState = {
-    messages: [{ role: 'user', content: input }],
-    input,
-    steps: [],
-    currentStep: 0,
-  }
-
-  let current = state
-
-  while (true) {
-    const next = shouldContinue(current)
-    if (next === 'end') break
-
-    if (next === 'reason') {
-      const result = await reasonNode(current)
-      current = { ...current, ...result }
-    } else if (next === 'act') {
-      const result = await actNode(current)
-      current = { ...current, ...result }
-    }
-  }
-
-  return current
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface WorkflowResult {
   response: string
-  steps: StepRecord[]
+  error?: string
 }
 
-export async function runWorkflow(input: string): Promise<WorkflowResult> {
-  const finalState = await runAgent(input)
-  const lastStep = finalState.steps[finalState.steps.length - 1]
-  const response = lastStep?.thought || 'Completed'
+// ─── LLM ───────────────────────────────────────────────────────────────────────
+
+const model = new ChatOpenAI({
+  modelName: process.env.MODEL_NAME || 'gpt-4o',
+  temperature: 0.7,
+  openAIApiKey: process.env.OPENAI_API_KEY,
+  streaming: true,
+  ...(process.env.OPENAI_BASE_URL
+    ? { configuration: { baseURL: process.env.OPENAI_BASE_URL } }
+    : {}),
+})
+
+// ─── State Channels ─────────────────────────────────────────────────────────────
+
+const AgentState = Annotation.Root({
+  messages: Annotation<Array<{ role: string; content: string }>>({
+    reducer: (a, b) => [...a, ...b],
+  }),
+})
+
+// ─── Graph Node ────────────────────────────────────────────────────────────────
+
+async function answerNode(
+  state: typeof AgentState.State
+): Promise<Partial<typeof AgentState.State>> {
+  const response = await model.invoke(state.messages)
+  const content = typeof response.content === 'string'
+    ? response.content
+    : String(response.content)
 
   return {
-    response,
-    steps: finalState.steps,
+    messages: [...state.messages, { role: 'assistant', content }],
+  }
+}
+
+// ─── Graph Definition ──────────────────────────────────────────────────────────
+
+const workflow = new StateGraph(AgentState)
+  .addNode('answer', answerNode)
+  .addEdge('__start__', 'answer')
+  .addEdge('answer', END)
+
+const checkpointer = new MemorySaver()
+
+export const graph = workflow.compile({ checkpointer })
+
+// ─── Public API ────────────────────────────────────────────────────────────────
+
+export async function runWorkflow(input: string): Promise<WorkflowResult> {
+  try {
+    const result = await graph.invoke(
+      {
+        messages: [{ role: 'user', content: input }],
+      },
+      { configurable: { thread_id: crypto.randomUUID() } }
+    )
+
+    const lastMessage = result.messages[result.messages.length - 1]
+    const response = lastMessage?.content || '无响应'
+
+    return { response }
+  } catch (err) {
+    return {
+      response: '',
+      error: err instanceof Error ? err.message : '未知错误',
+    }
+  }
+}
+
+export async function* runWorkflowStream(
+  input: string,
+  threadId?: string
+): AsyncGenerator<{ content?: string; done?: boolean; error?: string }, void, unknown> {
+  const config = {
+    configurable: { thread_id: threadId ?? crypto.randomUUID() },
+  }
+
+  try {
+    const stream = await graph.stream(
+      {
+        messages: [{ role: 'user', content: input }],
+      },
+      config
+    )
+
+    let streamed = false
+    for await (const event of stream) {
+      for (const [key, value] of Object.entries(event)) {
+        if (value && typeof value === 'object' && 'messages' in value) {
+          const output = value as { messages: Array<{ role: string; content: string }> }
+          const lastMessage = output.messages[output.messages.length - 1]
+          if (lastMessage?.role === 'assistant' && lastMessage.content) {
+            if (!streamed) {
+              streamed = true
+            }
+            yield { content: lastMessage.content }
+          }
+        }
+      }
+    }
+    yield { done: true }
+  } catch (err) {
+    yield { error: err instanceof Error ? err.message : 'Stream error' }
   }
 }

@@ -1,20 +1,28 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Tech stack: Next.js 15 (App Router, Turbopack), TypeScript, React 19, React DOM 19
+  AI: LangChain, LangGraph (@langchain/langgraph), OpenAI (@langchain/openai), streaming via SSE
+  Database: Prisma 6 with PostgreSQL, Redis (ioredis) for caching/sessions
+  Auth: NextAuth 5 (beta), bcryptjs for password hashing
+  UI: Tailwind CSS 4, shadcn/ui components (Radix UI), class-variance-authority, clsx, tailwind-merge
+  State: Zustand for client state
+  Charts: ECharts 5, echarts-for-react
+  Validation: Zod
+  API: App Router route handlers (route.ts), REST endpoints under /api/
+  Package manager: npm
+  Naming: kebab-case for files, PascalCase for components, camelCase for functions/variables
+  Conventions: conventional commits, server components by default, "use client" only when needed
+  Project type: RBAC dashboard + AI chat platform
+  Key domains:
+    - Dashboard: users, roles, permissions, menus CRUD with ECharts stats
+    - AI Chat: multi-agent chat with streaming (langgraph, deepagents, langchain endpoints)
+    - Auth: role-based access guard, session management via NextAuth + Redis
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  tasks:
+    - Break tasks into chunks of max 2 hours
+    - Each task must be independently verifiable (testable with a single command or action)
+  proposal:
+    - Keep proposals under 500 words
+    - Always include a "Non-goals" section
