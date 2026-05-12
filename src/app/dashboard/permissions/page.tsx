@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Button, Input, Card, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter, Empty } from '@/components/ui'
+import { Button, Input, Card, CardContent, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Modal, ModalHeader, ModalTitle, ModalContent, ModalFooter, Pagination, Empty } from '@/components/ui'
 
 interface Permission { id: string; code: string; name: string; type: string; parentId: string | null; path: string | null; icon: string | null; sort: number; status: number; remark: string | null; children?: Permission[]; createdAt: string }
 const typeLabels: Record<string, string> = { CATALOG: '目录', MENU: '菜单', BUTTON: '按钮' }
@@ -19,6 +19,10 @@ function Breadcrumb() {
 export default function PermissionsPage() {
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [total, setTotal] = useState(0)
+  const [keyword, setKeyword] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingPermission, setEditingPermission] = useState<Permission | null>(null)
   const [parentOptions, setParentOptions] = useState<{ label: string; value: string }[]>([])
@@ -34,14 +38,16 @@ export default function PermissionsPage() {
   const fetchPermissions = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/permissions')
+      const res = await fetch(`/api/permissions?page=${page}&pageSize=${pageSize}&keyword=${encodeURIComponent(keyword)}`)
       const data = await res.json()
-      if (data.code === 200) { setPermissions(data.data); setParentOptions(buildParentOptions(data.data)) }
+      if (data.code === 200) { setPermissions(data.data.list); setTotal(data.data.total) }
     } catch (error) { console.error(error) }
     finally { setLoading(false) }
-  }, [])
+  }, [page, pageSize, keyword])
 
   useEffect(() => { fetchPermissions() }, [fetchPermissions])
+
+  useEffect(() => { setParentOptions(buildParentOptions(permissions)) }, [permissions])
 
   const flattenPermissions = (perms: Permission[]): Permission[] => {
     const result: Permission[] = []
@@ -93,8 +99,17 @@ export default function PermissionsPage() {
 
       <Card>
         <CardContent className="p-0">
-          {loading ? (<div className="flex items-center justify-center py-12"><span className="text-sm text-[var(--muted-foreground)]">加载中...</span></div>) : flatPerms.length === 0 ? (<Empty description="暂无权限数据" />) : (
-            <Table>
+          <div className="p-4 border-b border-[var(--border)] flex items-center gap-2">
+            <Input placeholder="搜索权限名称或编码..." value={keyword} onChange={(e) => setKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (setPage(1), fetchPermissions())} className="max-w-xs" />
+            <Button onClick={() => { setPage(1); fetchPermissions() }}>搜索</Button>
+          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><span className="text-sm text-[var(--muted-foreground)]">加载中...</span></div>
+          ) : flatPerms.length === 0 ? (
+            <Empty description="暂无权限数据" />
+          ) : (
+            <>
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>权限编码</TableHead><TableHead>权限名称</TableHead><TableHead>类型</TableHead><TableHead>路径</TableHead><TableHead>状态</TableHead><TableHead>操作</TableHead>
@@ -118,6 +133,11 @@ export default function PermissionsPage() {
                 ))}
               </TableBody>
             </Table>
+            <div className="p-4 border-t border-[var(--border)] flex items-center justify-between">
+              <span className="text-xs text-[var(--muted-foreground)]">共 {total} 条</span>
+              <Pagination current={page} pageSize={pageSize} total={total} onChange={(p) => setPage(p)} />
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

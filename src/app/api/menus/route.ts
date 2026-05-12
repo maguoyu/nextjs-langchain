@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireAuth } from '@/lib/auth-guard'
 import { handleApiError, apiSuccess } from '@/lib/api-error'
-import { CreateMenuSchema } from '@/types/schemas'
+import { CreateMenuSchema, PaginationSchema } from '@/types/schemas'
+import { PAGINATION } from '@/types/constants'
 import type { Menu } from '@prisma/client'
 
 function buildMenuTree(menus: Menu[]) {
@@ -25,19 +26,85 @@ function buildMenuTree(menus: Menu[]) {
   return roots
 }
 
+function paginateTree(
+  tree: (Menu & { children: unknown[] })[]
+): (Menu & { children: unknown[] })[] {
+  const flat: (Menu & { children: unknown[] })[] = []
+
+  function flatten(nodes: (Menu & { children: unknown[] })[]) {
+    for (const n of nodes) {
+      flat.push(n)
+      flatten(n.children as (Menu & { children: unknown[] })[])
+    }
+  }
+  flatten(tree)
+  return flat
+}
+
 // 获取菜单列表（树形结构）
 export async function GET(request: NextRequest) {
   try {
     const { error } = await requireAuth()
     if (error) return error
 
-    const menus = await prisma.menu.findMany({
-      orderBy: [{ sort: 'asc' }, { createdAt: 'asc' }],
+    const searchParams = request.nextUrl.searchParams
+    const parsed = PaginationSchema.safeParse({
+      page: searchParams.get('page') || PAGINATION.DEFAULT_PAGE,
+      pageSize: searchParams.get('pageSize') || PAGINATION.DEFAULT_PAGE_SIZE,
+      keyword: searchParams.get('keyword') || '',
     })
 
-    const tree = buildMenuTree(menus)
+    const { page, pageSize, keyword } = parsed.success
+      ? parsed.data
+      : { page: 1, pageSize: 10, keyword: '' }
 
-    return apiSuccess(tree)
+    const where = keyword
+      ? {
+          OR: [
+            { name: { contains: keyword } },
+            { code: { contains: keyword } },
+          ],
+        }
+      : {}
+
+    const [menus, total] = await Promise.all([
+      prisma.menu.findMany({
+        where,
+        orderBy: [{ sort: 'asc' }, { createdAt: 'asc' }],
+      }),
+      prisma.menu.count({ where }),
+    ])
+
+    const tree = buildMenuTree(menus)
+    const flatAll = paginateTree(tree)
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
+    const start = (page - 1) * pageSize
+    const pagedFlat = flatAll.slice(start, start + pageSize)
+
+    const pagedTree: (Menu & { children: unknown[] })[] = []
+    const pagedIds = new Set(pagedFlat.map((m) => m.id))
+
+    function rebuildTree(
+      nodes: (Menu & { children: unknown[] })[]
+    ): (Menu & { children: unknown[] })[] {
+      const out: (Menu & { children: unknown[] })[] = []
+      for (const n of nodes) {
+        if (pagedIds.has(n.id)) {
+          out.push({ ...n, children: rebuildTree(n.children as (Menu & { children: unknown[] })[]) })
+        }
+      }
+      return out
+    }
+    for (const node of tree) {
+      if (pagedIds.has(node.id)) {
+        pagedTree.push({
+          ...node,
+          children: rebuildTree(node.children as (Menu & { children: unknown[] })[]),
+        })
+      }
+    }
+
+    return apiSuccess({ list: pagedTree, total, page, pageSize, totalPages })
   } catch (error) {
     return handleApiError(error)
   }
