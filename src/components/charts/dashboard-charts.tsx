@@ -68,6 +68,10 @@ interface DashboardChartsProps {
     roleDistribution: { name: string; value: number }[]
     monthlyNewUsers: { month: string; value: number }[]
     apiCalls: { hour: string; value: number }[]
+    radarData?: {
+      indicator: { name: string; max: number }[]
+      values: number[]
+    }
   } | null
   loading?: boolean
 }
@@ -138,7 +142,7 @@ export function DashboardCharts({ stats, loading }: DashboardChartsProps) {
     return <div className="text-center py-16 text-sm text-[var(--muted-foreground)]">暂无数据</div>
   }
 
-  const { overview = { userCount: 0, roleCount: 0, permissionCount: 0, menuCount: 0 }, userTrend = [], roleDistribution = [], monthlyNewUsers = [], apiCalls = [] } = stats
+  const { overview = { userCount: 0, roleCount: 0, permissionCount: 0, menuCount: 0 }, userTrend = [], roleDistribution = [], monthlyNewUsers = [], apiCalls = [], radarData } = stats
 
   const chartBase = {
     tooltip: { trigger: 'axis' as const },
@@ -203,6 +207,34 @@ export function DashboardCharts({ stats, loading }: DashboardChartsProps) {
             </div>
             <div className="h-56 px-4 pb-4">
               <MiniChart option={{ ...chartBase, xAxis: { ...chartBase.xAxis, data: apiCalls.map(d => `${d.hour}:00`), boundaryGap: false }, series: [{ type: 'line' as const, data: apiCalls.map(d => d.value), smooth: true, areaStyle: { color: { type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'color-mix(in srgb, var(--chart-4) 30%, transparent)' }, { offset: 1, color: 'color-mix(in srgb, var(--chart-4) 5%, transparent)' }] } }, lineStyle: { color: 'var(--chart-4)', width: 2 }, itemStyle: { color: 'var(--chart-4)' }, showSymbol: false }] }} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Radar Chart - Full Width */}
+        <Card>
+          <CardContent className="p-0">
+            <div className="px-4 pt-4 pb-2">
+              <h3 className="text-sm font-semibold text-[var(--foreground)]">系统能力评估</h3>
+              <p className="text-xs text-[var(--muted-foreground)]">多维度综合评分</p>
+            </div>
+            <div className="h-64 px-4 pb-4">
+              {radarData && radarData.indicator && radarData.values && (
+                <MiniChart option={{
+                  radar: {
+                    indicator: radarData.indicator,
+                    radius: '65%',
+                    axisName: { color: 'var(--muted-foreground)', fontSize: 11 },
+                    splitArea: { show: false },
+                    splitLine: { lineStyle: { color: 'var(--border)', type: 'dashed' as const } },
+                    axisLine: { lineStyle: { color: 'var(--border)' } },
+                  },
+                  series: [{
+                    type: 'radar' as const,
+                    data: [{ value: radarData.values, name: '系统能力', itemStyle: { color: '#4f86f7' }, areaStyle: { color: 'rgba(79, 134, 247, 0.25)' }, lineStyle: { color: '#4f86f7', width: 2 } }],
+                  }],
+                }} />
+              )}
             </div>
           </CardContent>
         </Card>

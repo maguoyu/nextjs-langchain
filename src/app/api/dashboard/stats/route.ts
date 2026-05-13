@@ -61,6 +61,17 @@ export async function GET(request: NextRequest) {
         { hour: '20', value: 125 },
         { hour: '24', value: 88 },
       ],
+      radarData: {
+        indicator: [
+          { name: 'API响应时间', max: 100 },
+          { name: '并发处理能力', max: 100 },
+          { name: '系统可用性', max: 100 },
+          { name: '数据完整率', max: 100 },
+          { name: '错误率控制', max: 100 },
+          { name: '安全性评分', max: 100 },
+        ],
+        values: [85, 72, 98, 95, 88, 90],
+      },
       permissionTypeDistribution,
       businessData: {
         healthScore: 98.5,

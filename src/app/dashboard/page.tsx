@@ -15,6 +15,10 @@ interface DashboardStats {
   roleDistribution: { name: string; value: number }[]
   monthlyNewUsers: { month: string; value: number }[]
   apiCalls: { hour: string; value: number }[]
+  radarData?: {
+    indicator: { name: string; max: number }[]
+    values: number[]
+  }
   businessData: { healthScore: number; onlineUsers: number }
 }
 
